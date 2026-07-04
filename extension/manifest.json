@@ -1,0 +1,29 @@
+{
+  "manifest_version": 3,
+  "name": "YT Music Sync",
+  "version": "1.0.0",
+  "description": "Sincroniza play, pause e seek do YouTube Music em tempo real entre duas pessoas.",
+  "permissions": ["storage"],
+  "host_permissions": ["*://music.youtube.com/*"],
+  "background": {
+    "service_worker": "background.js",
+    "scripts": ["background.js"]
+  },
+  "content_scripts": [
+    {
+      "matches": ["*://music.youtube.com/*"],
+      "js": ["content-script.js"],
+      "run_at": "document_idle"
+    }
+  ],
+  "action": {
+    "default_title": "YT Music Sync",
+    "default_popup": "popup.html"
+  },
+  "browser_specific_settings": {
+    "gecko": {
+      "id": "ytmusicsync@example.com",
+      "strict_min_version": "109.0"
+    }
+  }
+}
