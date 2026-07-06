@@ -1,0 +1,212 @@
+\documentclass[11pt,a4paper]{article}
+
+\usepackage[utf8]{inputenc}
+\usepackage[T1]{fontenc}
+\usepackage[margin=2.5cm]{geometry}
+\usepackage{hyperref}
+\usepackage{enumitem}
+\usepackage{xcolor}
+\usepackage{titlesec}
+
+\hypersetup{
+  colorlinks=true,
+  linkcolor=blue!50!black,
+  urlcolor=blue!50!black,
+  pdftitle={Guia de Uso - YT Music Sync},
+  pdfauthor={YT Music Sync}
+}
+
+\titleformat{\section}{\Large\bfseries}{\thesection}{1em}{}
+\titleformat{\subsection}{\large\bfseries}{\thesubsection}{1em}{}
+
+\newcommand{\dica}[1]{%
+  \par\medskip\noindent
+  \fcolorbox{blue!40!black}{blue!5}{%
+    \begin{minipage}{\dimexpr\linewidth-2\fboxsep-2\fboxrule}
+      \textbf{Dica:} #1
+    \end{minipage}%
+  }\par\medskip
+}
+
+\newcommand{\atencao}[1]{%
+  \par\medskip\noindent
+  \fcolorbox{orange!60!black}{orange!8}{%
+    \begin{minipage}{\dimexpr\linewidth-2\fboxsep-2\fboxrule}
+      \textbf{Atenção:} #1
+    \end{minipage}%
+  }\par\medskip
+}
+
+\title{\textbf{Guia de Uso --- YT Music Sync}\\[0.3em]
+\large Como duas pessoas sincronizam o YouTube Music em tempo real}
+\author{}
+\date{\today}
+
+\begin{document}
+
+\maketitle
+
+\section*{Visão geral}
+
+O YT Music Sync é uma extensão de navegador que sincroniza a reprodução do
+YouTube Music (play, pause e seek) entre duas pessoas em tempo real. Quando
+uma pessoa dá play, pause ou pula pra outro trecho da música, o mesmo
+acontece automaticamente no player da outra pessoa.
+
+O sistema tem duas partes:
+
+\begin{itemize}[nosep]
+  \item \textbf{A extensão}, instalada no navegador de cada uma das duas
+        pessoas (Chrome ou Firefox).
+  \item \textbf{O backend} (um Cloudflare Worker), que existe uma única vez
+        e serve de ponte entre as duas extensões.
+\end{itemize}
+
+\dica{Só é preciso fazer o deploy do backend \textbf{uma vez}. Depois disso,
+as duas pessoas só precisam instalar e configurar a extensão.}
+
+\section{Pré-requisitos}
+
+\begin{itemize}
+  \item Uma conta na \href{https://dash.cloudflare.com/sign-up}{Cloudflare}
+        (gratuita, sem cartão de crédito).
+  \item Node.js instalado --- só na máquina de quem for fazer o deploy do
+        backend (Passo 1).
+  \item Google Chrome e/ou Mozilla Firefox instalado nas duas máquinas.
+  \item O código-fonte do projeto (repositório
+        \texttt{sync-extension-ytbmusic}).
+\end{itemize}
+
+\section{Passo 1 --- Publicar o backend (feito uma única vez)}
+
+Uma das duas pessoas (só uma, não precisa repetir) executa, dentro da pasta
+\texttt{worker} do projeto:
+
+\begin{verbatim}
+cd worker
+npm install
+npx wrangler login
+npx wrangler deploy
+\end{verbatim}
+
+O comando \texttt{wrangler login} abre o navegador pedindo autorização na
+conta Cloudflare. O \texttt{wrangler deploy} publica o backend e imprime uma
+URL parecida com:
+
+\begin{verbatim}
+https://ytmusicsync-worker.SEU-SUBDOMINIO.workers.dev
+\end{verbatim}
+
+\textbf{Anote essa URL trocando \texttt{https://} por \texttt{wss://}} --- é
+o endereço que as duas pessoas vão usar na extensão:
+
+\begin{verbatim}
+wss://ytmusicsync-worker.SEU-SUBDOMINIO.workers.dev
+\end{verbatim}
+
+\section{Passo 2 --- Combinar um código de sala}
+
+As duas pessoas precisam concordar em um \emph{código de sala}: qualquer
+palavra ou frase, igual para os dois (por exemplo \texttt{sala-do-joao-e-maria}).
+Esse código funciona como uma senha simples --- só quem souber o código e a
+URL do backend consegue entrar na mesma sala de sincronização.
+
+\atencao{Não existe login nem autenticação de usuário no sistema (por
+decisão de projeto). O código de sala é o único controle de acesso, então
+escolham algo que não seja óbvio de adivinhar.}
+
+\section{Passo 3 --- Instalar a extensão}
+
+Este passo é repetido pelas \textbf{duas pessoas}, cada uma no seu próprio
+navegador.
+
+\subsection{No Google Chrome}
+
+\begin{enumerate}
+  \item Abrir \texttt{chrome://extensions}.
+  \item Ativar o interruptor \textbf{``Modo do desenvolvedor''} no canto
+        superior direito.
+  \item Clicar em \textbf{``Carregar sem compactação''}.
+  \item Selecionar a pasta \texttt{extension} do projeto.
+\end{enumerate}
+
+\subsection{No Mozilla Firefox}
+
+\begin{enumerate}
+  \item Abrir \texttt{about:debugging\#/runtime/this-firefox}.
+  \item Clicar em \textbf{``Carregar extensão temporária''}.
+  \item Selecionar o arquivo \texttt{manifest.json} dentro da pasta
+        \texttt{extension}.
+\end{enumerate}
+
+\atencao{No Firefox, uma extensão carregada como ``temporária'' é removida
+sempre que o navegador é fechado. É preciso repetir esses 3 passos toda vez
+que o Firefox reiniciar, a não ser que a extensão seja assinada e instalada
+de forma permanente.}
+
+\section{Passo 4 --- Configurar a extensão}
+
+Ainda nas \textbf{duas} instalações, cada pessoa deve:
+
+\begin{enumerate}
+  \item Clicar no ícone da extensão \textbf{YT Music Sync} na barra do
+        navegador.
+  \item Preencher o campo \textbf{Worker URL} com a URL \texttt{wss://...}
+        anotada no Passo 1.
+  \item Preencher o campo \textbf{Código da sala} com o código combinado no
+        Passo 2.
+  \item Clicar em \textbf{Salvar}.
+\end{enumerate}
+
+\dica{Os valores de \textbf{Worker URL} e \textbf{Código da sala} precisam
+ser \emph{idênticos} nas duas instalações. Um espaço a mais ou uma letra
+diferente já impede a sincronização.}
+
+\section{Passo 5 --- Usar}
+
+Com a extensão instalada e configurada nos dois lados:
+
+\begin{enumerate}
+  \item As duas pessoas abrem \url{https://music.youtube.com}.
+  \item Uma delas toca uma música, pausa, ou pula pra outro trecho.
+  \item O mesmo comando aparece automaticamente no player da outra pessoa.
+\end{enumerate}
+
+Não importa quem inicia a reprodução --- a sincronização funciona nos dois
+sentidos, a qualquer momento.
+
+\section{Limitações importantes}
+
+\begin{itemize}
+  \item Funciona apenas com \textbf{duas pessoas} por sala.
+  \item Não guarda histórico de sessões --- o estado da sala existe apenas
+        enquanto há gente conectada.
+  \item Pequenas diferenças de posição (menos de 2 segundos) são ignoradas
+        de propósito, para evitar micro-ajustes constantes por causa da
+        rede.
+\end{itemize}
+
+\section{Solução de problemas}
+
+\begin{description}[style=nextline]
+  \item[Não está sincronizando]
+    Confira se o \textbf{Worker URL} e o \textbf{Código da sala} são
+    exatamente iguais nas duas instalações da extensão (Passo 4).
+
+  \item[A extensão não conecta]
+    Confirme se o backend ainda está publicado --- rode
+    \texttt{npx wrangler deploy} de novo dentro de \texttt{worker} caso
+    necessário. Abra o console do navegador (\texttt{F12} → aba
+    \textit{Console}) e procure mensagens que começam com
+    \texttt{[YT Music Sync]} para ver o que está acontecendo.
+
+  \item[A extensão sumiu no Firefox]
+    Extensões temporárias somem quando o navegador reinicia --- repita o
+    Passo 3 (Firefox).
+
+  \item[Quero trocar de sala ou de backend]
+    Basta abrir o popup da extensão de novo e alterar os campos --- a
+    extensão reconecta automaticamente com os novos valores.
+\end{description}
+
+\end{document}

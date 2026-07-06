@@ -10,6 +10,11 @@ node_modules/
 Thumbs.db
 *.log
 
+# Arquivos auxiliares de compilação LaTeX
+docs/*.aux
+docs/*.out
+docs/*.toc
+
 # Documentação interna (não publicada no GitHub)
 CLAUDE.md
 ARCHITECTURE.md
