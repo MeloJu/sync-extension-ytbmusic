@@ -95,7 +95,8 @@ precisa de Node/Rust instalados na máquina de quem só vai usar).
 
 ## Limitações conhecidas (v1)
 
-- Só 2 conexões simultâneas por sala.
+- Pensado para grupos pequenos (2 a poucas pessoas por sala). Não há limite
+  travado no código, mas não foi testado com muitas conexões simultâneas.
 - Sem autenticação — o código da sala é o único controle de acesso.
 - Sem histórico de sessões — o estado só existe enquanto o Durable Object
   está ativo.
