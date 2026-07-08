@@ -5,6 +5,11 @@ node_modules/
 .wrangler/
 .dev.vars
 
+# Rust / Tauri
+target/
+desktop-app/src-tauri/gen/
+desktop-app/src-tauri/icons/source.png
+
 # Editor / SO
 .DS_Store
 Thumbs.db

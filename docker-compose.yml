@@ -1,0 +1,8 @@
+services:
+  worker:
+    build: ./worker
+    ports:
+      - "8787:8787"
+    volumes:
+      - ./worker/src:/app/src
+      - ./worker/wrangler.toml:/app/wrangler.toml
