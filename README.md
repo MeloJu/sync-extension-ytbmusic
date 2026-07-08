@@ -69,6 +69,18 @@ Pra gerar um instalador:
 npm run build     # gera .msi/.exe (Windows) em src-tauri/target/release/bundle/
 ```
 
+O `npm run build` também deixa um executável standalone pronto em
+`src-tauri/target/release/ytmusicsync-desktop.exe` mesmo se a etapa de
+empacotamento do instalador (`.msi`/NSIS) falhar — esse `.exe` já é um app
+Windows completo, só copiar pra qualquer lugar e dar duplo-clique (não
+precisa de Node/Rust instalados na máquina de quem só vai usar).
+
+> **Nota**: a etapa de empacotamento do instalador baixa ferramentas
+> externas (WiX/NSIS) na primeira vez. Se isso der timeout mesmo com
+> internet funcionando, geralmente é antivírus/firewall bloqueando a
+> conexão de processos não assinados (`curl` costuma funcionar quando o
+> `tauri build` trava) — nesse caso, use o `.exe` standalone acima.
+
 ### 3. Extensão de navegador (legado)
 
 1. Carregar sem compactação:
