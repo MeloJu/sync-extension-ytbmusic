@@ -4,11 +4,14 @@
   const browserAPI = typeof browser !== "undefined" ? browser : chrome;
   const POSITION_DIFF_THRESHOLD_SECONDS = 2;
   const RECONNECT_DELAY_MS = 3000;
+  const TRACK_POLL_MS = 1500;
+  const VIDEO_ID_PATTERN = /^[\w-]{5,20}$/;
 
   let socket = null;
   let video = null;
   let isRemoteOrigin = false;
   let reconnectTimer = null;
+  let lastVideoId = null;
   let config = { workerUrl: "", roomCode: "" };
 
   function log(...args) {
@@ -58,9 +61,47 @@
     }, RECONNECT_DELAY_MS);
   }
 
-  function send(type, position) {
+  function send(type, position, videoId, listId) {
     if (!socket || socket.readyState !== WebSocket.OPEN) return;
-    socket.send(JSON.stringify({ type, position, timestamp: Date.now() }));
+    const msg = { type, position, timestamp: Date.now() };
+    if (videoId) msg.videoId = videoId;
+    if (listId) msg.listId = listId;
+    socket.send(JSON.stringify(msg));
+  }
+
+  function getCurrentVideoId() {
+    if (!location.pathname.startsWith("/watch")) return null;
+    return new URLSearchParams(location.search).get("v");
+  }
+
+  function getCurrentListId() {
+    if (!location.pathname.startsWith("/watch")) return null;
+    return new URLSearchParams(location.search).get("list");
+  }
+
+  function applyRemoteTrack(videoId, listId) {
+    if (!videoId || !VIDEO_ID_PATTERN.test(videoId)) return;
+    if (getCurrentVideoId() === videoId) return;
+    log("trocando pra música remota", videoId);
+    // Levar o list junto faz os dois lados ganharem a MESMA fila (rádios do
+    // YT Music são determinísticas por list id). Navegação recarrega a
+    // página; o content script reinjeta, reconecta e recebe um sync novo.
+    let url = "https://music.youtube.com/watch?v=" + videoId;
+    if (listId && /^[\w-]{10,80}$/.test(listId)) {
+      url += "&list=" + listId;
+    }
+    location.href = url;
+  }
+
+  function watchTrackChanges() {
+    lastVideoId = getCurrentVideoId();
+    setInterval(() => {
+      const id = getCurrentVideoId();
+      if (id && id !== lastVideoId) {
+        lastVideoId = id;
+        send("track", 0, id, getCurrentListId());
+      }
+    }, TRACK_POLL_MS);
   }
 
   function handleServerMessage(event) {
@@ -70,6 +111,18 @@
     } catch (e) {
       return;
     }
+
+    // Sync de faixa acontece antes do check de <video>: navegar pra música
+    // certa não depende do player já existir (ex: outro lado na homepage).
+    if (msg.type === "track") {
+      applyRemoteTrack(msg.videoId, msg.listId);
+      return;
+    }
+    if (msg.type === "sync" && msg.videoId && getCurrentVideoId() !== msg.videoId) {
+      applyRemoteTrack(msg.videoId, msg.listId);
+      return;
+    }
+
     if (!video) return;
 
     isRemoteOrigin = true;
@@ -138,5 +191,6 @@
   });
 
   findVideoElement(attachPlayerListeners);
+  watchTrackChanges();
   loadConfigAndStart();
 })();
