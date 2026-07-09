@@ -8,10 +8,19 @@ pub fn get_config(app: AppHandle) -> Result<Config, String> {
 }
 
 #[tauri::command]
-pub fn save_config(app: AppHandle, worker_url: String, room_code: String) -> Result<(), String> {
+pub fn save_config(
+    app: AppHandle,
+    worker_url: String,
+    room_code: String,
+    name: String,
+) -> Result<(), String> {
+    // Preserva o clientId já existente (identidade estável da pessoa).
+    let existing = config::load(&app).unwrap_or_default();
     let cfg = Config {
         worker_url,
         room_code,
+        name,
+        client_id: existing.client_id,
     };
     config::save(&app, &cfg)?;
     push_config_to_ytmusic_window(&app, &cfg);

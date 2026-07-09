@@ -24,3 +24,4 @@ docs/*.toc
 CLAUDE.md
 ARCHITECTURE.md
 adr/
+.claude

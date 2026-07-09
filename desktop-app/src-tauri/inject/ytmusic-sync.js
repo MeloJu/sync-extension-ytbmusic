@@ -17,7 +17,8 @@
   let isRemoteOrigin = false;
   let reconnectTimer = null;
   let lastVideoId = null;
-  let config = window.__YTMS_INITIAL_CONFIG__ || { workerUrl: "", roomCode: "" };
+  let isHost = false;
+  let config = window.__YTMS_INITIAL_CONFIG__ || { workerUrl: "", roomCode: "", name: "", clientId: "" };
 
   function log(...args) {
     console.log("[YT Music Sync]", ...args);
@@ -52,7 +53,17 @@
     const url = `${base}/room/${encodeURIComponent(config.roomCode)}`;
     socket = new WebSocket(url);
 
-    socket.addEventListener("open", () => log("conectado à sala", config.roomCode));
+    socket.addEventListener("open", () => {
+      log("conectado à sala", config.roomCode);
+      socket.send(
+        JSON.stringify({
+          type: "hello",
+          clientId: config.clientId || "",
+          name: config.name || "",
+          role: "player",
+        })
+      );
+    });
     socket.addEventListener("message", handleServerMessage);
     socket.addEventListener("close", scheduleReconnect);
     socket.addEventListener("error", () => socket && socket.close());
@@ -66,12 +77,15 @@
     }, RECONNECT_DELAY_MS);
   }
 
-  function send(type, position, videoId, listId) {
+  function sendRaw(obj) {
     if (!socket || socket.readyState !== WebSocket.OPEN) return;
-    const msg = { type, position, timestamp: Date.now() };
-    if (videoId) msg.videoId = videoId;
-    if (listId) msg.listId = listId;
-    socket.send(JSON.stringify(msg));
+    socket.send(JSON.stringify(obj));
+  }
+
+  function sendTransport(type, position) {
+    // Só o anfitrião controla a reprodução; os demais apenas seguem.
+    if (!isHost) return;
+    sendRaw({ type, position, timestamp: Date.now() });
   }
 
   function getCurrentVideoId() {
@@ -79,23 +93,20 @@
     return new URLSearchParams(location.search).get("v");
   }
 
-  function getCurrentListId() {
-    if (!location.pathname.startsWith("/watch")) return null;
-    return new URLSearchParams(location.search).get("list");
+  function getNowPlayingMeta() {
+    const bar = document.querySelector("ytmusic-player-bar");
+    const title = bar?.querySelector(".title")?.textContent?.trim() || "";
+    const artist = bar?.querySelector(".byline")?.textContent?.trim().split("•")[0].trim() || "";
+    return { title, artist };
   }
 
-  function applyRemoteTrack(videoId, listId) {
+  function applyRemoteTrack(videoId) {
     if (!videoId || !VIDEO_ID_PATTERN.test(videoId)) return;
     if (getCurrentVideoId() === videoId) return;
-    log("trocando pra música remota", videoId);
-    // Levar o list junto faz os dois lados ganharem a MESMA fila (rádios do
-    // YT Music são determinísticas por list id). Navegação recarrega a
-    // página; o script reinjeta, reconecta e recebe um sync novo.
-    let url = "https://music.youtube.com/watch?v=" + videoId;
-    if (listId && /^[\w-]{10,80}$/.test(listId)) {
-      url += "&list=" + listId;
-    }
-    location.href = url;
+    log("indo pra música da fila", videoId);
+    // Navega direto pro vídeo (sem list): a fila compartilhada é nossa, não a
+    // do YT Music. Navegação recarrega a página; o script reinjeta e reconecta.
+    location.href = "https://music.youtube.com/watch?v=" + videoId;
   }
 
   function watchTrackChanges() {
@@ -104,9 +115,26 @@
       const id = getCurrentVideoId();
       if (id && id !== lastVideoId) {
         lastVideoId = id;
-        send("track", 0, id, getCurrentListId());
+        // Só o anfitrião propaga trocas manuais de música (viram item da fila).
+        if (isHost) {
+          const meta = getNowPlayingMeta();
+          sendRaw({ type: "track", videoId: id, title: meta.title, artist: meta.artist, timestamp: Date.now() });
+        }
       }
     }, TRACK_POLL_MS);
+  }
+
+  function disableNativeAutoplay() {
+    // Best-effort: desliga o "Reprodução automática" do YT Music pra ele não
+    // pular pra fila dele. A nossa fila compartilhada é quem avança.
+    try {
+      const toggle = document.querySelector(
+        'ytmusic-player-bar tp-yt-paper-toggle-button[aria-pressed="true"], #autoplay tp-yt-paper-toggle-button[aria-pressed="true"]'
+      );
+      if (toggle) toggle.click();
+    } catch (e) {
+      /* ignora */
+    }
   }
 
   function handleServerMessage(event) {
@@ -117,15 +145,27 @@
       return;
     }
 
-    // Sync de faixa acontece antes do check de <video>: navegar pra música
-    // certa não depende do player já existir (ex: outro lado na homepage).
-    if (msg.type === "track") {
-      applyRemoteTrack(msg.videoId, msg.listId);
+    if (msg.type === "presence") {
+      isHost = msg.hostId && config.clientId && msg.hostId === config.clientId;
       return;
     }
-    if (msg.type === "sync" && msg.videoId && getCurrentVideoId() !== msg.videoId) {
-      applyRemoteTrack(msg.videoId, msg.listId);
+    if (msg.type === "queue") {
+      return; // a janela do YT Music não renderiza a fila; o painel cuida disso
+    }
+
+    // Navegar pra música certa não depende do <video> já existir.
+    if (msg.type === "track") {
+      applyRemoteTrack(msg.videoId);
       return;
+    }
+    if (msg.type === "sync") {
+      if (typeof msg.hostId !== "undefined") {
+        isHost = msg.hostId && config.clientId && msg.hostId === config.clientId;
+      }
+      if (msg.videoId && getCurrentVideoId() !== msg.videoId) {
+        applyRemoteTrack(msg.videoId);
+        return;
+      }
     }
 
     if (!video) return;
@@ -168,28 +208,33 @@
     video = el;
     video.addEventListener("play", () => {
       if (isRemoteOrigin) return;
-      send("play", video.currentTime);
+      sendTransport("play", video.currentTime);
     });
     video.addEventListener("pause", () => {
       if (isRemoteOrigin) return;
-      send("pause", video.currentTime);
+      sendTransport("pause", video.currentTime);
     });
     video.addEventListener("seeked", () => {
       if (isRemoteOrigin) return;
-      send("seek", video.currentTime);
+      sendTransport("seek", video.currentTime);
+    });
+    video.addEventListener("ended", () => {
+      // Só o anfitrião comanda o avanço da fila compartilhada.
+      if (isHost) sendRaw({ type: "next" });
     });
   }
 
   // Recebe atualizações de config via WebviewWindow::eval() do lado Rust
   // quando o usuário salva novos valores na janela de configurações.
   window.__ytmsApplyConfig = function (newConfig) {
-    config = newConfig || { workerUrl: "", roomCode: "" };
+    config = newConfig || { workerUrl: "", roomCode: "", name: "", clientId: "" };
     connect();
   };
 
   function boot() {
     findVideoElement(attachPlayerListeners);
     watchTrackChanges();
+    setTimeout(disableNativeAutoplay, 4000);
     connect();
   }
 

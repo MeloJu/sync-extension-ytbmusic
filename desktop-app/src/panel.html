@@ -1,0 +1,138 @@
+<!DOCTYPE html>
+<html>
+  <head>
+    <meta charset="utf-8" />
+    <title>YT Music Sync — Painel</title>
+    <style>
+      :root {
+        --bg: #0f0f14;
+        --card: #1b1b24;
+        --card2: #23232f;
+        --text: #eaeaf0;
+        --muted: #9a9ab0;
+        --accent: #ff5a5f;
+        --accent2: #3ea6ff;
+      }
+      * { box-sizing: border-box; }
+      body {
+        font-family: system-ui, sans-serif;
+        margin: 0;
+        background: var(--bg);
+        color: var(--text);
+        font-size: 13px;
+      }
+      header {
+        padding: 12px 14px;
+        border-bottom: 1px solid #2a2a38;
+      }
+      header h2 { margin: 0; font-size: 15px; }
+      #conn { font-size: 11px; color: var(--muted); margin-top: 2px; }
+      .section { padding: 12px 14px; border-bottom: 1px solid #2a2a38; }
+      .section h3 {
+        margin: 0 0 8px;
+        font-size: 11px;
+        text-transform: uppercase;
+        letter-spacing: 0.5px;
+        color: var(--muted);
+      }
+      ul { list-style: none; margin: 0; padding: 0; }
+      .member {
+        display: flex;
+        align-items: center;
+        gap: 6px;
+        padding: 5px 0;
+      }
+      .member .who { flex: 1; }
+      .member button {
+        font-size: 11px;
+        padding: 2px 8px;
+        border: 1px solid #3a3a4a;
+        background: var(--card2);
+        color: var(--text);
+        border-radius: 4px;
+        cursor: pointer;
+      }
+      .member.host .who::after { content: " 👑"; }
+      .searchbar { display: flex; gap: 6px; }
+      .searchbar input {
+        flex: 1;
+        padding: 7px;
+        border-radius: 5px;
+        border: 1px solid #3a3a4a;
+        background: var(--card);
+        color: var(--text);
+      }
+      .searchbar button, .transport button {
+        padding: 7px 10px;
+        border-radius: 5px;
+        border: none;
+        background: var(--accent2);
+        color: #fff;
+        cursor: pointer;
+      }
+      .row {
+        display: flex;
+        align-items: center;
+        gap: 8px;
+        padding: 6px 0;
+        border-bottom: 1px solid #23232f;
+      }
+      .row .meta { flex: 1; min-width: 0; }
+      .row .t { font-weight: 600; white-space: nowrap; overflow: hidden; text-overflow: ellipsis; }
+      .row .a { color: var(--muted); font-size: 11px; white-space: nowrap; overflow: hidden; text-overflow: ellipsis; }
+      .row .act {
+        font-size: 11px;
+        padding: 3px 8px;
+        border: 1px solid #3a3a4a;
+        background: var(--card2);
+        color: var(--text);
+        border-radius: 4px;
+        cursor: pointer;
+      }
+      .row.current { background: #201a1a; border-left: 3px solid var(--accent); padding-left: 6px; }
+      .transport { display: flex; gap: 8px; justify-content: center; }
+      .transport button { min-width: 48px; font-size: 16px; }
+      .transport button:disabled { opacity: 0.35; cursor: not-allowed; }
+      .hint { color: var(--muted); font-size: 11px; margin-top: 6px; }
+      .empty { color: var(--muted); font-style: italic; padding: 6px 0; }
+      #results .row .act { background: var(--accent); border: none; color: #fff; }
+    </style>
+  </head>
+  <body>
+    <header>
+      <h2>YT Music Sync</h2>
+      <div id="conn">conectando…</div>
+    </header>
+
+    <div class="section">
+      <h3>Na sala</h3>
+      <ul id="members"><li class="empty">ninguém ainda</li></ul>
+    </div>
+
+    <div class="section">
+      <h3>Controle (só o anfitrião)</h3>
+      <div class="transport">
+        <button id="prev" title="Anterior">⏮️</button>
+        <button id="playpause" title="Play/Pause">⏯️</button>
+        <button id="next" title="Próxima">⏭️</button>
+      </div>
+      <div class="hint" id="hostHint"></div>
+    </div>
+
+    <div class="section">
+      <h3>Buscar e adicionar</h3>
+      <div class="searchbar">
+        <input id="q" type="text" placeholder="buscar música…" />
+        <button id="searchBtn">Buscar</button>
+      </div>
+      <ul id="results"></ul>
+    </div>
+
+    <div class="section">
+      <h3>Fila</h3>
+      <ul id="queue"><li class="empty">fila vazia</li></ul>
+    </div>
+
+    <script src="panel.js"></script>
+  </body>
+</html>

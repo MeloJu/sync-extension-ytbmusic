@@ -7,6 +7,10 @@ use tauri::{AppHandle, Manager};
 pub struct Config {
     pub worker_url: String,
     pub room_code: String,
+    #[serde(default)]
+    pub name: String,
+    #[serde(default)]
+    pub client_id: String,
 }
 
 fn config_path(app: &AppHandle) -> Result<std::path::PathBuf, String> {
@@ -20,11 +24,19 @@ fn config_path(app: &AppHandle) -> Result<std::path::PathBuf, String> {
 
 pub fn load(app: &AppHandle) -> Result<Config, String> {
     let path = config_path(app)?;
-    if !path.exists() {
-        return Ok(Config::default());
+    let mut cfg: Config = if path.exists() {
+        let contents = fs::read_to_string(&path).map_err(|e| e.to_string())?;
+        serde_json::from_str(&contents).map_err(|e| e.to_string())?
+    } else {
+        Config::default()
+    };
+
+    // Garante um clientId estável por instalação (identifica a pessoa na sala).
+    if cfg.client_id.is_empty() {
+        cfg.client_id = uuid::Uuid::new_v4().to_string();
+        save(app, &cfg)?;
     }
-    let contents = fs::read_to_string(&path).map_err(|e| e.to_string())?;
-    serde_json::from_str(&contents).map_err(|e| e.to_string())
+    Ok(cfg)
 }
 
 pub fn save(app: &AppHandle, config: &Config) -> Result<(), String> {
