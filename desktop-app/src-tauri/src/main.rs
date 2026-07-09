@@ -11,7 +11,8 @@ fn main() {
         .plugin(tauri_plugin_http::init())
         .invoke_handler(tauri::generate_handler![
             commands::get_config,
-            commands::save_config
+            commands::save_config,
+            commands::get_ytm_key
         ])
         .setup(|app| {
             let handle = app.handle();

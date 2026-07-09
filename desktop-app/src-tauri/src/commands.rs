@@ -7,6 +7,13 @@ pub fn get_config(app: AppHandle) -> Result<Config, String> {
     config::load(&app)
 }
 
+/// Chave pública do cliente web do YT Music, embutida no build a partir do
+/// .env (ver build.rs). Fica no lado Rust pra não aparecer no código do painel.
+#[tauri::command]
+pub fn get_ytm_key() -> String {
+    env!("YTM_KEY").to_string()
+}
+
 #[tauri::command]
 pub fn save_config(
     app: AppHandle,

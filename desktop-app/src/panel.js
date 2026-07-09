@@ -11,9 +11,9 @@ function getTauriFetch() {
   return http.fetch;
 }
 
-// Chave pública do cliente web do YT Music (mesma usada pela lib ytmusicapi).
-// Não é segredo — é embutida na própria página do YT Music.
-const YTM_KEY = "AIzaSyC9XL3ZjWddXya6X74dJoCTL-WEYFDNX30";
+// Chave do cliente web do YT Music vem do lado Rust (embutida do .env no
+// build) — carregada em boot() via get_ytm_key. Não fica hardcoded aqui.
+let YTM_KEY = "";
 const YTM_CONTEXT = {
   client: { clientName: "WEB_REMIX", clientVersion: "1.20240101.01.00", hl: "pt" },
 };
@@ -167,6 +167,7 @@ el("playpause").addEventListener("click", () => {
 // ---------- Busca (endpoint interno do YT Music) ----------
 
 async function search(query) {
+  if (!YTM_KEY) throw new Error("chave de busca indisponível");
   const tauriFetch = getTauriFetch();
   const resp = await tauriFetch(`https://music.youtube.com/youtubei/v1/search?key=${YTM_KEY}`, {
     method: "POST",
@@ -298,6 +299,11 @@ el("q").addEventListener("keydown", (e) => {
 
 async function boot() {
   config = await invoke("get_config");
+  try {
+    YTM_KEY = await invoke("get_ytm_key");
+  } catch (e) {
+    console.error("[panel] não consegui carregar a chave de busca", e);
+  }
   connect();
 }
 boot();

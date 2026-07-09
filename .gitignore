@@ -1,6 +1,10 @@
 # Dependências
 node_modules/
 
+# Segredos / variáveis de ambiente
+.env
+**/.env
+
 # Cloudflare / Wrangler
 .wrangler/
 .dev.vars
